@@ -1,6 +1,28 @@
 # Audio
-ro.config.media_vol_steps=25
-ro.config.vc_call_vol_steps=7
+audio.sys.noisy.broadcast.delay=500
+audio.sys.mute.latency.factor=2
+audio.sys.routing.latency=0
+audio.offload.min.duration.secs=30
+audio.sys.offload.pstimeout.secs=3
 
-# Display
-ro.surface_flinger.has_wide_color_display=true
+# Camera
+persist.vendor.camera.privapp.list=org.lineageos.aperture,com.android.camera
+vendor.camera.aux.packagelist=org.lineageos.aperture,com.android.camera
+
+# Charger
+ro.charger.enable_suspend=true
+
+# IORap
+persist.device_config.runtime_native_boot.iorap_readahead_enable=true
+
+# LMKD
+ro.config.low_ram=false
+ro.lmk.log_stats=false
+
+# Transcoding related property.
+debug.media.transcoding.codec_max_operating_rate_720P=240
+debug.media.transcoding.codec_max_operating_rate_1080P=120
+
+# VulkanAPI
+graphics.gpu.profiler.support=true
+graphics.gpu.profiler.vulkan_layer_apk=com.google.pixel.coral.gpuprofiling.vulkanlayer
