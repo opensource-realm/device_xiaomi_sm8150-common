@@ -72,7 +72,7 @@ AB_OTA_POSTINSTALL_CONFIG += \
 AB_OTA_POSTINSTALL_CONFIG += \
     RUN_POSTINSTALL_vendor=true \
     POSTINSTALL_PATH_vendor=bin/checkpoint_gc \
-    FILESYSTEM_TYPE_vendor=erofs \
+    FILESYSTEM_TYPE_vendor=ext4 \
     POSTINSTALL_OPTIONAL_vendor=true
 
 PRODUCT_PACKAGES += \
@@ -146,6 +146,9 @@ TARGET_ENABLE_BLUR := true
 # Camera
 $(call inherit-product-if-exists, vendor/xiaomi/miuicamera/config.mk)
 
+# Dolby
+$(call inherit-product-if-exists, vendor/dolby/dolby.mk)
+
 PRODUCT_PACKAGES += \
     android.hardware.camera.provider@2.4-impl \
     android.hardware.camera.provider@2.4-service_64
@@ -173,7 +176,6 @@ endif
 
 # Device-specific settings
 PRODUCT_PACKAGES += \
-    XiaomiDolby \
     XiaomiParts
 
 # Display
