@@ -175,6 +175,9 @@ endif
 PRODUCT_PACKAGES += \
     XiaomiParts
 
+# Dolby
+$(call inherit-product-if-exists, vendor/dolby/dolby.mk)
+
 # Display
 PRODUCT_PACKAGES += \
     android.hardware.graphics.composer@2.4-service \
