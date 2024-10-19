@@ -23,6 +23,25 @@ sh_binary {
     vendor: true,
 }
 
+sh_binary {
+    name: "init.mi.usb.sh",
+    src: "bin/init.mi.usb.sh",
+    vendor: true,
+}
+
+sh_binary {
+    name: "init.qcom.sensors.sh",
+    src: "bin/init.qcom.sensors.sh",
+    vendor: true,
+}
+
+sh_binary {
+    name: "init.qcom.usb.sh",
+    src: "bin/init.qcom.usb.sh",
+    vendor: true,
+}
+
+
 // fstab
 soong_config_module_type {
     name: "xiaomi_msmnile_rootdir_prebuilt_etc",
@@ -90,6 +109,14 @@ prebuilt_etc {
 prebuilt_etc {
     name: "init.xiaomi.rc",
     src: "etc/init.xiaomi.rc",
+    sub_dir: "init/hw",
+    vendor: true,
+}
+
+
+prebuilt_etc {
+    name: "init.recovery.qcom.rc",
+    src: "etc/init.recovery.qcom.rc",
     sub_dir: "init/hw",
     vendor: true,
 }

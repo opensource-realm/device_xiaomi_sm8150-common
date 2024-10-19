@@ -1,4 +1,5 @@
-# Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+#!/vendor/bin/sh
+# Copyright (c) 2020 The Linux Foundation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,31 +26,8 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-on init
-    # Mount binderfs
-    mkdir /dev/binderfs
-    mount binder binder /dev/binderfs stats=global
-    chmod 0755 /dev/binderfs
-
-    symlink /dev/binderfs/binder /dev/binder
-    symlink /dev/binderfs/hwbinder /dev/hwbinder
-    symlink /dev/binderfs/vndbinder /dev/vndbinder
-
-    chmod 0666 /dev/binderfs/hwbinder
-    chmod 0666 /dev/binderfs/binder
-    chmod 0666 /dev/binderfs/vndbinder
-
-    write /sys/class/backlight/panel0-backlight/brightness 200
-
-    setprop sys.usb.configfs 1
-
-on property:ro.boot.usbconfigfs=false
-   setprop sys.usb.configfs 0
-
-on property:ro.boot.usbcontroller=*
-    setprop sys.usb.controller ${ro.boot.usbcontroller}
-    write /sys/class/udc/${ro.boot.usbcontroller}/device/../mode peripheral
-
-on fs
-    wait /dev/block/platform/soc/${ro.boot.bootdevice}
-    symlink /dev/block/platform/soc/${ro.boot.bootdevice} /dev/block/bootdevice
+#
+# Function to start sensors for SSC enabled platforms
+#
+cp /vendor/etc/sensors/scripts/* /data/vendor/sensors/scripts/
+chmod a+rw /data/vendor/sensors/scripts/*

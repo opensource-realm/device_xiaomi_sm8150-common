@@ -29,34 +29,32 @@
 
 on early-init
     write /proc/sys/kernel/sched_boost 1
-    symlink /data/tombstones /tombstones
 
 on init
-    write /dev/stune/foreground/schedtune.sched_boost_no_override 1
-    write /dev/stune/top-app/schedtune.sched_boost_no_override 1
-    write /dev/stune/schedtune.colocate 0
-    write /dev/stune/background/schedtune.colocate 0
-    write /dev/stune/system-background/schedtune.colocate 0
-    write /dev/stune/foreground/schedtune.colocate 0
-    write /dev/stune/top-app/schedtune.colocate 1
     write /sys/module/qpnp_rtc/parameters/poweron_alarm 1
     wait /dev/block/platform/soc/1d84000.ufshc
     symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
+
     #change owner of white led
     chown system system /sys/class/leds/white/brightness
     chown system system /sys/class/leds/white/breath
-    #change owner of green led
-    chown system system /sys/class/leds/green/brightness
-    chown system system /sys/class/leds/green/breath
-    # add for cit-test of led
-    chmod 0666 /sys/class/leds/led:torch_0/brightness
-    chmod 0666 /sys/class/leds/led:switch_0/brightness
 
-    chmod 0666 /dev/uhid
+    # set default schedTune value for foreground/top-app
+    write /dev/stune/foreground/schedtune.prefer_idle 1
+    write /dev/stune/top-app/schedtune.prefer_idle 1
 
-    # Allow system to adjust haptic level directly
-    chown system system /sys/module/qti_haptics/parameters/vmax_mv_override
-    chmod 0664 /sys/module/qti_haptics/parameters/vmax_mv_override
+    # set default schedTune value for camera-daemon
+    write /dev/stune/camera-daemon/schedtune.prefer_idle 1
+
+    # ZRAM parameters
+    write /sys/block/zram0/comp_algorithm lz4
+    write /proc/sys/vm/page-cluster 0
+
+on init && property:ro.boot.hwc=GLOBAL
+    setprop ro.boot.product.hardware.sku vayu
+
+on property:ro.boot.product.hardware.sku=vayu
+    enable vendor.nfc_hal_service
 
 on early-fs
     start vold
@@ -79,10 +77,6 @@ on fs
 
     mkdir /mnt/vendor/persist/subsys 0770 root system
 
-on fs && property:ro.build.ab_update=true
-    mount ext4 /dev/block/bootdevice/by-name/rescue /mnt/rescue noatime
-    restorecon_recursive /mnt/rescue
-
 on post-fs
     # set RLIMIT_MEMLOCK to 64MB
     setrlimit 8 67108864 67108864
@@ -91,6 +85,8 @@ on post-fs
     start vendor.sec_nvm
 
 on late-fs
+    wait_for_prop hwservicemanager.ready true
+    exec_start wait_for_keymaster
     mount_all /vendor/etc/fstab.qcom --late
 
 on post-fs-data
@@ -101,17 +97,8 @@ on post-fs-data
     mkdir /tombstones/dsps 0771 system system
     mkdir /data/vendor/hbtp 0750 system system
     mkdir /data/vendor/nnhal 0700 system system
-    chmod 0644 /dev/elliptic0
-    chmod 0644 /dev/elliptic1
     mkdir /data/vendor/misc/display 0771 system system
     mkdir /data/vendor/nfc 0770 nfc nfc
-    chmod 666 /sys/class/drm/card0-DSI-1/disp_count
-    chown system system /sys/class/drm/card0-DSI-1/dim_alpha
-    chown system system /sys/class/drm/card0-DSI-1/fod_ui_ready
-    chown system system /sys/class/drm/card0-DSI-1/dim_layer_enable
-
-    mkdir /data/vendor/thermal 0771 root system
-    mkdir /data/vendor/thermal/config 0771 root system
 
     chown system system /dev/tfa_reg
     chown system system /dev/tfa_rw
@@ -122,84 +109,57 @@ on post-fs-data
     chmod 0660 /dev/tfa_rpc
     chmod 0660 /dev/tfa_control
 
-    chmod 0666 /sys/module/migt/parameters/mi_viptask
-    restorecon /sys/module/migt/parameters/mi_viptask
-
 on property:ro.boot.dp=0x0
     write /sys/bus/platform/devices/c440000.qcom,spmi:qcom,pm8150@0:qcom,power-on@800/pshold_reboot 7
 
 on early-boot
     start vendor.sensors
 
-# For cpusets initialize for Silver Only first and then Silver + Gold
-# Silver Only configuration cannot work with 0-7
 on boot
     chown system system /sys/kernel/hbtp/display_pwr
     chown system system /sys/kernel/qvr_external_sensor/fd
     chown system system /sys/class/drm/card0-DSI-1/doze_backlight
     start rmt_storage
     start rfs_access
-    write /dev/cpuset/top-app/cpus 0-3
-    write /dev/cpuset/audio-app/cpus 1-2
-    write /dev/cpuset/foreground/cpus 0-3
-    write /dev/cpuset/foreground/boost/cpus 0-3
-    write /dev/cpuset/background/cpus 0-3
-    write /dev/cpuset/system-background/cpus 0-3
-    write /dev/cpuset/top-app/cpus 0-7
-    write /dev/cpuset/foreground/cpus 0-7
-    write /dev/cpuset/foreground/boost/cpus 0-7
-    write /dev/cpuset/background/cpus 0-7
-    write /dev/cpuset/system-background/cpus 0-7
 
-    chown system system /sys/class/thermal/thermal_message/sconfig
-
-    chown system system /sys/class/drm/card0-DSI-1/disp_param
-    chmod 0664 /sys/class/drm/card0-DSI-1/disp_param
-
-    chown system system /proc/tp_selftest
-    chmod 0664 /proc/tp_selftest
-    chown system system /sys/class/touch/touch_dev/palm_sensor
-
-#palm_sensor
     chown system system /sys/class/touch/touch_dev/palm_sensor
 
     chown system system /sys/class/backlight/panel0-backlight/brightness_clone
     chown system system /dev/lirc0
     chmod 0660 /dev/lirc0
-#USB controller configuration
+
     setprop vendor.usb.rndis.func.name "gsi"
     setprop vendor.usb.rmnet.func.name "gsi"
     setprop vendor.usb.rmnet.inst.name "rmnet"
     setprop vendor.usb.dpl.inst.name "dpl"
     setprop vendor.usb.qdss.inst.name "qdss"
     setprop vendor.usb.controller a600000.dwc3
-    setprop sys.usb.configfs 1
 
-    write /sys/block/sda/queue/wbt_lat_usec 75000
-
-on property:vendor.display.lcd_density=560
-   setprop dalvik.vm.heapgrowthlimit 256m
-
-#MIUI DEL:
-#on property:vendor.display.lcd_density=640
-#   setprop dalvik.vm.heapgrowthlimit 512m
+    chmod 0660 /sys/touchpanel/double_tap
+    chown system system /sys/touchpanel/double_tap
 
 on boot && property:persist.vendor.usb.controller.default=*
     setprop vendor.usb.controller ${persist.vendor.usb.controller.default}
 
-on property:vendor.usb.controller=*
-    setprop sys.usb.controller ${vendor.usb.controller}
+on property:sys.boot_completed=1
+    # Turn off scheduler boost at the end
+    write /proc/sys/kernel/sched_boost 0
 
-#Load WLAN driver
-    insmod /vendor/lib/modules/qca_cld3_wlan.ko
+    write /dev/stune/nnapi-hal/schedtune.prefer_idle 0
 
-#pd-mapper
+    rm /data/unencrypted/zram_swap
+    swapon_all /vendor/etc/fstab.qcom
+    write /proc/sys/vm/swappiness 60
+
+    # Restrict permissions to socket file
+    # to hide Magisk & co.
+    chmod 440 /proc/net/unix
+
 service vendor.pd_mapper /vendor/bin/pd-mapper
     class core
     user system
     group system
 
-#Peripheral manager
 service vendor.per_mgr /vendor/bin/pm-service
     class core
     user system
@@ -212,39 +172,37 @@ service vendor.per_proxy /vendor/bin/pm-proxy
     group system
     disabled
 
-on property:init.svc.vendor.per_mgr=running
-    start vendor.per_proxy
-
-on property:sys.shutdown.requested=*
-    stop vendor.per_proxy
-
 on charger
     mkdir /mnt/vendor/persist
     chown root system /mnt/vendor/persist
     chmod 0771 /mnt/vendor/persist
     mkdir /mnt/vendor/persist/subsys 0770 root system
+    start vendor.hvdcp_opti
     start vendor.power_off_alarm
     setprop sys.usb.controller a600000.dwc3
     setprop sys.usb.configfs 1
-    start leds-sh
+    chown system system /sys/class/leds/white/brightness
+    write /sys/class/leds/white/brightness 255
 
-service vendor.thermal-engine /vendor/bin/thermal-engine
+service vendor.spdaemon /vendor/bin/spdaemon
+    class core
+    user system
+    group system
+    shutdown critical
+
+service vendor.sec_nvm /vendor/bin/sec_nvm
+    class core
+    user system
+    group system
+
+service vendor.thermal-engine /vendor/bin/thermal-engine -c /vendor/etc/${vendor.thermal.engine:-thermal-engine.conf}
    class main
    user root
+   group root
    socket thermal-send-client stream 0666 system system
    socket thermal-recv-client stream 0660 system system
    socket thermal-recv-passive-client stream 0666 system system
    socket thermal-send-rule stream 0660 system system
-   group root
-
-service vendor.mdm_helper /vendor/bin/mdm_helper
-    class core
-    group system wakelock
-    disabled
-
-service vendor.mdm_launcher /vendor/bin/sh /vendor/bin/init.mdm.sh
-    class main
-    oneshot
 
 service vendor.energy-awareness /vendor/bin/energy-awareness
     class main
@@ -252,15 +210,11 @@ service vendor.energy-awareness /vendor/bin/energy-awareness
     group system
     oneshot
 
-service panel-info-sh /system/vendor/bin/sh /vendor/etc/init.panel_info.sh
-    class core
+service vendor.hvdcp_opti /vendor/bin/hvdcp_opti
+    class main
     user root
-    oneshot
-
-service leds-sh /system/vendor/bin/sh /vendor/etc/init.leds.sh
-    class core
-    user root
-    oneshot
+    group system wakelock
+    task_profiles ServiceCapacityLow
 
 service nv_mac /vendor/bin/nv_mac
     class late_start
@@ -277,13 +231,6 @@ service dcvs-sh /vendor/bin/init.qti.dcvs.sh
 
 on property:vendor.dcvs.prop=1
    start dcvs-sh
-
-service audioshell_service /vendor/bin/audioshell_service
-    oneshot
-    disabled
-
-on property:ro.vendor.miui.region=*
-    start audioshell_service
 
 on property:vendor.audio.cit.spkcal.copy=true
     copy /data/vendor/cit/tas2557_cal.bin /mnt/vendor/persist/audio/tas2557_cal.bin
@@ -303,75 +250,15 @@ on property:vendor.audio.cit.spkcal.copy=true
     chmod 666 /mnt/vendor/persist/audio/tas25xx_calib.bin
     chmod 666 /mnt/vendor/persist/audio/tas2559_cal.txt
 
-    chmod 666 /data/vendor/cit/cs35l41_cal_tr.bin
-    chmod 666 /data/vendor/cit/cs35l41_cal_tr.txt
-    chmod 666 /data/vendor/cit/cs35l41_cal_br.bin
-    chmod 666 /data/vendor/cit/cs35l41_cal_br.txt
-    chmod 666 /data/vendor/cit/cs35l41_cal_tl.bin
-    chmod 666 /data/vendor/cit/cs35l41_cal_tl.txt
-    chmod 666 /data/vendor/cit/cs35l41_cal_bl.bin
-    chmod 666 /data/vendor/cit/cs35l41_cal_bl.txt
-
-    copy /data/vendor/cit/cs35l41_cal_tr.bin /mnt/vendor/persist/audio/cs35l41_cal_tr.bin
-    copy /data/vendor/cit/cs35l41_cal_tr.txt /mnt/vendor/persist/audio/cs35l41_cal_tr.txt
-    copy /data/vendor/cit/cs35l41_cal_br.bin /mnt/vendor/persist/audio/cs35l41_cal_br.bin
-    copy /data/vendor/cit/cs35l41_cal_br.txt /mnt/vendor/persist/audio/cs35l41_cal_br.txt
-    copy /data/vendor/cit/cs35l41_cal_tl.bin /mnt/vendor/persist/audio/cs35l41_cal_tl.bin
-    copy /data/vendor/cit/cs35l41_cal_tl.txt /mnt/vendor/persist/audio/cs35l41_cal_tl.txt
-    copy /data/vendor/cit/cs35l41_cal_bl.bin /mnt/vendor/persist/audio/cs35l41_cal_bl.bin
-    copy /data/vendor/cit/cs35l41_cal_bl.txt /mnt/vendor/persist/audio/cs35l41_cal_bl.txt
-
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_tr.bin
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_tr.txt
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_br.bin
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_br.txt
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_tl.bin
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_tl.txt
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_bl.bin
-    chmod 666 /mnt/vendor/persist/audio/cs35l41_cal_bl.txt
-
 service remosaic_daemon /system/vendor/bin/remosaic_daemon
    class late_start
    user camera
    group camera
 
-
-on post-fs-data
-    chmod 0666 /dev/migt
-    restorecon /dev/migt
-    chmod 0777 /sys/module/migt/parameters/migt_freq
-    restorecon /sys/module/migt/parameters/migt_freq
-    chmod 0777 /sys/module/migt/parameters/migt_ms
-    restorecon /sys/module/migt/parameters/migt_ms
-    chmod 0777 /sys/module/migt/parameters/migt_thresh
-    restorecon /sys/module/migt/parameters/migt_thresh
-    chmod 0777 /sys/module/migt/parameters/boost_policy
-    restorecon /sys/module/migt/parameters/boost_policy
-    chmod 0777 /sys/module/migt/parameters/fps_variance_ratio
-    restorecon /sys/module/migt/parameters/fps_variance_ratio
-    chmod 0777 /sys/module/migt/parameters/super_task_max_num
-    restorecon /sys/module/migt/parameters/super_task_max_num
-    chmod 0777 /sys/module/migt/parameters/migt_ceiling_freq
-    restorecon /sys/module/migt/parameters/migt_ceiling_freq
-    chmod 0777 /sys/module/migt/parameters/stask_candidate_num
-    restorecon /sys/module/migt/parameters/stask_candidate_num
-    chmod 0777 /sys/module/migt/parameters/fas_power_mod
-    restorecon /sys/module/migt/parameters/fas_power_mod
-
-# for gts test
-on property:persist.sys.miui_optimization=false
-    write /dev/stune/top-app/schedtune.prefer_idle 1
-    write /dev/stune/top-app/schedtune.boost 100
-
-on property:persist.sys.miui_optimization=true
-    write /dev/stune/top-app/schedtune.prefer_idle 0
-    write /dev/stune/top-app/schedtune.boost 0
-
-service mi-serial-sh /vendor/bin/init.mi.serial.sh
-    class late_start
-    user root
-    group root system radio
+service vendor.nfc_hal_service /vendor/bin/hw/android.hardware.nfc@1.2-service
+    override
+    class hal
+    user nfc
+    group nfc
+    task_profiles ServiceCapacityLow
     disabled
-    oneshot
-on post-fs && property:ro.product.device=nabu
-    start mi-serial-sh
