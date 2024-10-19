@@ -68,6 +68,10 @@ ro.bluetooth.a2dp_offload.supported=true
 ro.vendor.bluetooth.wipower=false
 vendor.qcom.bluetooth.soc=cherokee
 
+# Camera
+persist.vendor.camera.privapp.list=org.lineageos.aperture,com.android.camera
+vendor.camera.aux.packagelist=org.lineageos.aperture,com.android.camera
+
 # Crypto
 ro.crypto.volume.filenames_mode=aes-256-cts
 ro.crypto.dm_default_key.options_format.version=2
